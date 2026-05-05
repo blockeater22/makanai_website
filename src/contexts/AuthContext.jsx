@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import API from "../lib/api";
 
 const AuthContext = createContext(null);
+const ENABLE_AUTH_BOOTSTRAP = String(import.meta.env.VITE_ENABLE_AUTH_BOOTSTRAP || "").toLowerCase() === "true";
 
 function featureKeysInclude(planContext, key) {
   if (!key) return true;
@@ -57,6 +58,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const checkAuth = useCallback(async () => {
+    if (!ENABLE_AUTH_BOOTSTRAP) {
+      setUser(false);
+      setPlanContext(null);
+      setOrgContext(null);
+      setLoading(false);
+      return;
+    }
     try {
       const { data } = await API.get("/auth/me");
       setUser(data);

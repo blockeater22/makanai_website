@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import API from "../lib/api";
 import { saveSelectedPlan } from "../lib/planSelection";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -202,7 +201,6 @@ function GradientOrb({ className = "", color = "blue" }) {
 export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [plans, setPlans] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [bookDemoOpen, setBookDemoOpen] = useState(false);
@@ -221,10 +219,6 @@ export default function HomePage() {
     message: "",
     source: "homepage",
   });
-
-  useEffect(() => {
-    API.get("/subscription/plans").then(({ data }) => setPlans(data.plans)).catch(() => {});
-  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -267,7 +261,21 @@ export default function HomePage() {
     }
     setSubmittingDemo(true);
     try {
-      await API.post("/demo-requests", demoForm);
+      const sheetsWebhookUrl = String(import.meta.env.VITE_DEMO_REQUEST_SHEETS_WEBHOOK || "").trim();
+      if (sheetsWebhookUrl) {
+        await fetch(sheetsWebhookUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            ...demoForm,
+            submitted_at: new Date().toISOString(),
+            source_page: "makanai_homepage",
+          }),
+        });
+      } else {
+        throw new Error("Sheets webhook not configured. Set VITE_DEMO_REQUEST_SHEETS_WEBHOOK.");
+      }
       toast.success("Demo request received. Our team will contact you soon.");
       setBookDemoOpen(false);
       setDemoForm({
